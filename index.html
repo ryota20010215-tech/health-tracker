@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="健康記録">
+<meta name="theme-color" content="#ffffff">
+<title>健康記録アプリ</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  :root{
+    --bg:#ffffff;--bg2:#f5f5f4;--bg3:#eeece6;
+    --text:#1a1a1a;--text2:#6b6b6b;--text3:#999;
+    --border:rgba(0,0,0,0.12);--border2:rgba(0,0,0,0.2);
+    --teal50:#E1F5EE;--teal600:#0F6E56;--teal400:#1D9E75;
+    --blue50:#E6F1FB;--blue600:#185FA5;--blue400:#378ADD;
+    --amber50:#FAEEDA;--amber600:#854F0B;
+    --coral50:#FAECE7;--coral600:#993C1D;--coral400:#F0997B;
+    --pink400:#D4537E;--purple50:#EEEDFE;--purple800:#3C3489;
+    --radius:8px;--radius-lg:12px;
+  }
+  @media(prefers-color-scheme:dark){
+    :root{
+      --bg:#1c1c1e;--bg2:#2c2c2e;--bg3:#3a3a3c;
+      --text:#f2f2f7;--text2:#aeaeb2;--text3:#636366;
+      --border:rgba(255,255,255,0.12);--border2:rgba(255,255,255,0.22);
+    }
+  }
+  body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;background:var(--bg3);color:var(--text);min-height:100vh;}
+  .app{max-width:480px;margin:0 auto;background:var(--bg3);min-height:100vh;padding-bottom:80px;}
+  .header{background:var(--bg);border-bottom:0.5px solid var(--border);padding:16px 20px 12px;position:sticky;top:0;z-index:100;}
+  .header h1{font-size:18px;font-weight:600;color:var(--text);}
+  .header-sub{font-size:12px;color:var(--text2);margin-top:2px;}
+  .nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:var(--bg);border-top:0.5px solid var(--border);display:flex;z-index:100;}
+  .nav-btn{flex:1;padding:10px 4px 12px;border:none;background:transparent;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--text2);font-size:10px;}
+  .nav-btn.active{color:var(--blue600);}
+  .nav-icon{font-size:20px;}
+  .section{display:none;padding:16px;}
+  .section.active{display:block;}
+  .card{background:var(--bg);border-radius:var(--radius-lg);padding:16px;margin-bottom:12px;border:0.5px solid var(--border);}
+  .card-title{font-size:13px;color:var(--text2);margin-bottom:10px;}
+  textarea,input[type=text]{width:100%;font-size:15px;font-family:inherit;color:var(--text);background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius);padding:12px;resize:none;}
+  textarea{min-height:80px;}
+  .btn{display:block;width:100%;padding:13px;border-radius:var(--radius);border:none;font-size:15px;font-weight:500;cursor:pointer;margin-top:10px;}
+  .btn-primary{background:var(--blue400);color:#fff;}
+  .btn-secondary{background:var(--bg2);color:var(--text);border:0.5px solid var(--border2);}
+  .btn:disabled{opacity:0.5;}
+  .loading{text-align:center;padding:12px;font-size:13px;color:var(--text2);display:none;}
+  .ai-box{background:var(--bg2);border-radius:var(--radius);padding:12px;font-size:13px;color:var(--text2);line-height:1.6;margin-top:10px;display:none;}
+  .photo-drop{border:1.5px dashed var(--border2);border-radius:var(--radius-lg);padding:24px;text-align:center;cursor:pointer;margin-bottom:10px;}
+  .photo-drop p{font-size:14px;color:var(--text2);}
+  .photo-drop small{font-size:11px;color:var(--text3);}
+  .preview-img{width:100%;max-height:200px;object-fit:cover;border-radius:var(--radius);margin-bottom:10px;display:none;}
+  .divider{display:flex;align-items:center;gap:10px;margin:16px 0;}
+  .divider-line{flex:1;height:0.5px;background:var(--border);}
+  .divider-text{font-size:12px;color:var(--text3);}
+  .metrics-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px;}
+  .metric-card{background:var(--bg);border-radius:var(--radius-lg);padding:14px;border:0.5px solid var(--border);}
+  .metric-label{font-size:12px;color:var(--text2);margin-bottom:4px;}
+  .metric-val{font-size:26px;font-weight:600;color:var(--text);}
+  .metric-unit{font-size:11px;color:var(--text2);}
+  .chip{display:inline-block;font-size:12px;padding:3px 10px;border-radius:20px;margin:2px;}
+  .chip-food{background:var(--teal50);color:var(--teal600);}
+  .chip-drink{background:var(--coral50);color:var(--coral600);}
+  .chip-exercise{background:var(--blue50);color:var(--blue600);}
+  .chip-vitals{background:var(--amber50);color:var(--amber600);}
+  .chip-photo{background:var(--purple50);color:var(--purple800);}
+  .rec-card{background:var(--bg);border-radius:var(--radius-lg);padding:14px;margin-bottom:10px;border:0.5px solid var(--border);}
+  .rec-date{font-size:11px;color:var(--text3);margin-bottom:6px;}
+  .rec-text{font-size:13px;color:var(--text2);line-height:1.5;margin-top:6px;}
+  .rec-header{display:flex;justify-content:space-between;align-items:flex-start;}
+  .del-btn{font-size:12px;color:var(--text3);background:none;border:none;cursor:pointer;padding:2px 6px;}
+  .chart-wrap{position:relative;width:100%;margin-bottom:20px;}
+  .sec-label{font-size:13px;font-weight:500;color:var(--text2);margin-bottom:10px;margin-top:4px;}
+  .empty{text-align:center;padding:32px 16px;font-size:14px;color:var(--text3);}
+  input[type=file]{display:none;}
+  .alert{background:var(--coral50);border-radius:var(--radius);padding:10px 14px;font-size:13px;color:var(--coral600);margin-top:8px;display:none;}
+  .setup-box{background:var(--blue50);border-radius:var(--radius-lg);padding:14px;margin-bottom:12px;border:0.5px solid rgba(55,138,221,0.3);}
+  .setup-box p{font-size:13px;color:var(--blue600);line-height:1.6;}
+  .setup-box input{margin-top:8px;}
+  .tag-ok{color:var(--teal400);}
+  .tag-warn{color:var(--coral600);}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1>健康記録</h1>
+    <div class="header-sub" id="header-sub">血圧・LDL・中性脂肪の改善トラッカー</div>
+  </div>
+
+  <div class="section active" id="section-record">
+    <div class="setup-box" id="api-setup" style="display:none;">
+      <p>Anthropic APIキーを入力してください。<br>写真解析・AI分析に使用します。<br>キーはこの端末にのみ保存されます。</p>
+      <input type="text" id="api-key-input" placeholder="sk-ant-..." style="margin-top:8px;">
+      <button class="btn btn-primary" onclick="saveApiKey()" style="margin-top:8px;">保存する</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">写真から記録</div>
+      <div class="photo-drop" onclick="document.getElementById('file-input').click()">
+        <p>食事の写真をタップして選択</p>
+        <small>JPG / PNG 対応</small>
+      </div>
+      <input type="file" id="file-input" accept="image/*" onchange="handlePhoto(event)">
+      <img id="preview-img" class="preview-img">
+      <button class="btn btn-primary" id="photo-btn" onclick="submitPhoto()" style="display:none;">写真を解析して保存</button>
+      <div class="loading" id="loading-photo">AIが写真を解析中...</div>
+      <div class="ai-box" id="ai-photo"></div>
+      <div class="alert" id="err-photo"></div>
+    </div>
+
+    <div class="divider">
+      <div class="divider-line"></div>
+      <div class="divider-text">またはテキストで入力</div>
+      <div class="divider-line"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">食事・飲酒・運動・体重・血圧など自由に入力</div>
+      <textarea id="text-input" placeholder="例：朝トースト＋ヨーグルト。昼サバ弁当。夜ビール2缶。通勤40分歩いた。体重68kg 血圧128/82。"></textarea>
+      <button class="btn btn-primary" onclick="submitText()">AIで自動分類して保存</button>
+      <div class="loading" id="loading-text">AIが分析中...</div>
+      <div class="ai-box" id="ai-text"></div>
+      <div class="alert" id="err-text"></div>
+    </div>
+
+    <div id="today-list"></div>
+  </div>
+
+  <div class="section" id="section-today">
+    <div class="metrics-grid" id="today-metrics"></div>
+    <div id="today-foods"></div>
+  </div>
+
+  <div class="section" id="section-graph">
+    <div class="sec-label">飲酒（棒）・運動（線）</div>
+    <div class="chart-wrap" style="height:180px;"><canvas id="chart1"></canvas></div>
+    <div class="sec-label">体重・血圧</div>
+    <div class="chart-wrap" style="height:180px;"><canvas id="chart2"></canvas></div>
+  </div>
+
+  <div class="section" id="section-history">
+    <div id="history-list"></div>
+  </div>
+
+  <nav class="nav">
+    <button class="nav-btn active" onclick="showTab('record',this)">
+      <span class="nav-icon">✏️</span>記録
+    </button>
+    <button class="nav-btn" onclick="showTab('today',this)">
+      <span class="nav-icon">📊</span>今日
+    </button>
+    <button class="nav-btn" onclick="showTab('graph',this)">
+      <span class="nav-icon">📈</span>グラフ
+    </button>
+    <button class="nav-btn" onclick="showTab('history',this)">
+      <span class="nav-icon">📋</span>履歴
+    </button>
+  </nav>
+</div>
+
+<script>
+const RKEY = 'health-records-v1';
+const AKEY = 'health-api-key';
+
+function getRecords(){ try{ return JSON.parse(localStorage.getItem(RKEY)||'[]'); }catch(e){return[];} }
+function setRecords(r){ localStorage.setItem(RKEY, JSON.stringify(r)); }
+function getApiKey(){ return localStorage.getItem(AKEY)||''; }
+function saveApiKey(){ const k=document.getElementById('api-key-input').value.trim(); if(k){ localStorage.setItem(AKEY,k); document.getElementById('api-setup').style.display='none'; } }
+
+function todayKey(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function todayLabel(){ return new Date().toLocaleDateString('ja-JP',{month:'numeric',day:'numeric',weekday:'short'}); }
+function fmtDate(key){ const [y,m,d]=key.split('-'); return `${parseInt(m)}/${parseInt(d)}`; }
+
+let imgB64=null, imgType=null;
+
+function handlePhoto(e){
+  const f=e.target.files[0]; if(!f)return;
+  const r=new FileReader();
+  r.onload=(ev)=>{
+    imgB64=ev.target.result.split(',')[1]; imgType=f.type;
+    const p=document.getElementById('preview-img');
+    p.src=ev.target.result; p.style.display='block';
+    document.getElementById('photo-btn').style.display='block';
+    document.getElementById('ai-photo').style.display='none';
+  };
+  r.readAsDataURL(f);
+}
+
+async function callAI(messages){
+  const key = getApiKey();
+  if(!key) throw new Error('NO_KEY');
+  const res = await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01'},
+    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages})
+  });
+  if(!res.ok) throw new Error(await res.text());
+  const d=await res.json();
+  return d.content.filter(b=>b.type==='text').map(b=>b.text).join('');
+}
+
+async function submitPhoto(){
+  if(!imgB64)return;
+  const key=getApiKey();
+  if(!key){ showApiSetup(); return; }
+  setLoading('photo',true);
+  try{
+    const raw=await callAI([{role:'user',content:[
+      {type:'image',source:{type:'base64',media_type:imgType,data:imgB64}},
+      {type:'text',text:`この食事写真を分析してJSONのみ返してください。\n{"food":["料理名"],"alcohol":{"drinks":0,"label":""},"exercise":{"minutes":0,"label":""},"vitals":{"weight":null,"bp_sys":null,"bp_dia":null},"estimated_kcal":数値,"salt_g":数値,"comment":"血圧131/94・LDL169.8・中性脂肪181改善中の人への一言アドバイス40字以内"}`}
+    ]}]);
+    const parsed=JSON.parse(raw.replace(/\`\`\`json|\`\`\`/g,'').trim());
+    const recs=getRecords();
+    recs.unshift({key:todayKey(),date:todayLabel(),timestamp:Date.now(),text:`写真：${(parsed.food||[]).join('、')}`,source:'photo',...parsed});
+    setRecords(recs);
+    const box=document.getElementById('ai-photo');
+    let msg=`検出：${(parsed.food||[]).join('、')}`;
+    if(parsed.estimated_kcal) msg+=`　約${Math.round(parsed.estimated_kcal)}kcal`;
+    if(parsed.salt_g) msg+=`　塩分${parseFloat(parsed.salt_g).toFixed(1)}g`;
+    if(parsed.comment) msg+=`\n${parsed.comment}`;
+    box.textContent=msg; box.style.display='block';
+    document.getElementById('preview-img').style.display='none';
+    document.getElementById('photo-btn').style.display='none';
+    imgB64=null; document.getElementById('file-input').value='';
+    renderAll();
+  }catch(e){ showErr('photo', e.message==='NO_KEY'?'APIキーを設定してください':'解析に失敗しました'); }
+  setLoading('photo',false);
+}
+
+async function submitText(){
+  const text=document.getElementById('text-input').value.trim(); if(!text)return;
+  const key=getApiKey();
+  if(!key){ showApiSetup(); return; }
+  setLoading('text',true);
+  try{
+    const raw=await callAI([{role:'user',content:`以下の健康記録をJSONのみで返してください。\nテキスト：「${text}」\n{"food":["食べたもの"],"alcohol":{"drinks":数値,"label":"説明"},"exercise":{"minutes":数値,"label":"説明"},"vitals":{"weight":数値orNull,"bp_sys":数値orNull,"bp_dia":数値orNull},"comment":"血圧131/94・LDL169.8・中性脂肪181改善中の人への40字以内アドバイス"}`}]);
+    const parsed=JSON.parse(raw.replace(/\`\`\`json|\`\`\`/g,'').trim());
+    const recs=getRecords();
+    recs.unshift({key:todayKey(),date:todayLabel(),timestamp:Date.now(),text,source:'text',...parsed});
+    setRecords(recs);
+    document.getElementById('text-input').value='';
+    const box=document.getElementById('ai-text');
+    box.textContent=parsed.comment||''; box.style.display=parsed.comment?'block':'none';
+    renderAll();
+  }catch(e){ showErr('text', e.message==='NO_KEY'?'APIキーを設定してください':'保存に失敗しました'); }
+  setLoading('text',false);
+}
+
+function setLoading(type,on){
+  document.getElementById('loading-'+type).style.display=on?'block':'none';
+  if(type==='photo') document.getElementById('photo-btn').style.display=on?'none':(imgB64?'block':'none');
+}
+function showErr(type,msg){ const e=document.getElementById('err-'+type); e.textContent=msg; e.style.display='block'; setTimeout(()=>e.style.display='none',4000); }
+function showApiSetup(){ document.getElementById('api-setup').style.display='block'; document.getElementById('api-setup').scrollIntoView({behavior:'smooth'}); }
+
+function deleteRecord(ts){
+  if(!confirm('この記録を削除しますか？'))return;
+  const recs=getRecords().filter(r=>r.timestamp!==ts);
+  setRecords(recs); renderAll();
+}
+
+function recCard(r){
+  const chips=[];
+  if(r.source==='photo') chips.push(`<span class="chip chip-photo">写真</span>`);
+  if(r.food?.length) chips.push(`<span class="chip chip-food">食事${r.food.length}件</span>`);
+  if(r.alcohol?.drinks>0) chips.push(`<span class="chip chip-drink">飲酒 ${r.alcohol.label}</span>`);
+  if(r.exercise?.minutes>0) chips.push(`<span class="chip chip-exercise">運動 ${r.exercise.label}</span>`);
+  if(r.vitals?.weight||r.vitals?.bp_sys){ const v=[]; if(r.vitals.weight)v.push(`${r.vitals.weight}kg`); if(r.vitals.bp_sys)v.push(`血圧${r.vitals.bp_sys}/${r.vitals.bp_dia}`); chips.push(`<span class="chip chip-vitals">${v.join(' ')}</span>`); }
+  if(r.estimated_kcal) chips.push(`<span class="chip chip-food">約${Math.round(r.estimated_kcal)}kcal</span>`);
+  if(r.salt_g) chips.push(`<span class="chip chip-vitals">塩分${parseFloat(r.salt_g).toFixed(1)}g</span>`);
+  const short=r.text.length>60?r.text.slice(0,60)+'...':r.text;
+  return `<div class="rec-card">
+    <div class="rec-header"><div class="rec-date">${r.date}</div><button class="del-btn" onclick="deleteRecord(${r.timestamp})">削除</button></div>
+    <div>${chips.join('')}</div>
+    <div class="rec-text">${short}</div>
+  </div>`;
+}
+
+function renderTodayList(){
+  const today=getRecords().filter(r=>r.key===todayKey());
+  document.getElementById('today-list').innerHTML=today.map(recCard).join('');
+}
+
+function renderTodayTab(){
+  const today=getRecords().filter(r=>r.key===todayKey());
+  const alc=today.reduce((s,r)=>s+(r.alcohol?.drinks||0),0);
+  const ex=today.reduce((s,r)=>s+(r.exercise?.minutes||0),0);
+  const kcal=today.reduce((s,r)=>s+(r.estimated_kcal||0),0);
+  const salt=today.reduce((s,r)=>s+(parseFloat(r.salt_g)||0),0);
+  const allFood=today.flatMap(r=>r.food||[]);
+  const lastV=today.find(r=>r.vitals?.weight||r.vitals?.bp_sys);
+  let cards=`
+    <div class="metric-card"><div class="metric-label">飲酒</div><div class="metric-val" style="color:${alc>2?'var(--coral600)':'var(--teal600)'}">${Math.round(alc*10)/10}</div><div class="metric-unit">缶・杯</div></div>
+    <div class="metric-card"><div class="metric-label">運動</div><div class="metric-val" style="color:${ex>=30?'var(--teal600)':'var(--amber600)'}">${Math.round(ex)}</div><div class="metric-unit">分</div></div>`;
+  if(kcal>0) cards+=`<div class="metric-card"><div class="metric-label">カロリー</div><div class="metric-val">${Math.round(kcal)}</div><div class="metric-unit">kcal</div></div>`;
+  if(salt>0) cards+=`<div class="metric-card"><div class="metric-label">塩分</div><div class="metric-val" style="color:${salt>6?'var(--coral600)':'var(--teal600)'}">${salt.toFixed(1)}</div><div class="metric-unit">g（目標6g未満）</div></div>`;
+  if(lastV?.vitals?.weight) cards+=`<div class="metric-card"><div class="metric-label">体重</div><div class="metric-val">${lastV.vitals.weight}</div><div class="metric-unit">kg</div></div>`;
+  if(lastV?.vitals?.bp_sys) cards+=`<div class="metric-card"><div class="metric-label">血圧</div><div class="metric-val" style="font-size:20px;color:${lastV.vitals.bp_sys>=130?'var(--coral600)':'var(--teal600)'}">${lastV.vitals.bp_sys}/${lastV.vitals.bp_dia}</div><div class="metric-unit">mmHg</div></div>`;
+  document.getElementById('today-metrics').innerHTML=cards;
+  document.getElementById('today-foods').innerHTML=allFood.length?`<div class="card"><div class="sec-label">今日の食事</div><div style="font-size:14px;color:var(--text2);line-height:1.9;">${allFood.map(f=>`・${f}`).join('<br>')}</div></div>`:(today.length?'':'<div class="empty">まだ記録がありません</div>');
+}
+
+let c1=null,c2=null;
+function renderGraphs(){
+  const recs=getRecords();
+  const days=[];
+  for(let i=6;i>=0;i--){
+    const d=new Date(); d.setDate(d.getDate()-i);
+    const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const dr=recs.filter(r=>r.key===key);
+    days.push({
+      label:fmtDate(key),
+      alc:Math.round(dr.reduce((s,r)=>s+(r.alcohol?.drinks||0),0)*10)/10,
+      ex:Math.round(dr.reduce((s,r)=>s+(r.exercise?.minutes||0),0)),
+      w:dr.find(r=>r.vitals?.weight)?.vitals?.weight||null,
+      bp:dr.find(r=>r.vitals?.bp_sys)?.vitals?.bp_sys||null
+    });
+  }
+  if(c1)c1.destroy();
+  c1=new Chart(document.getElementById('chart1').getContext('2d'),{
+    type:'bar',
+    data:{labels:days.map(d=>d.label),datasets:[
+      {label:'飲酒',data:days.map(d=>d.alc),backgroundColor:'#F0997B',yAxisID:'y'},
+      {label:'運動',data:days.map(d=>d.ex),type:'line',borderColor:'#85B7EB',backgroundColor:'transparent',yAxisID:'y2',tension:0.3,pointRadius:4}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{font:{size:11}}},y2:{beginAtZero:true,position:'right',ticks:{font:{size:11}},grid:{drawOnChartArea:false}}}}
+  });
+  if(c2)c2.destroy();
+  c2=new Chart(document.getElementById('chart2').getContext('2d'),{
+    type:'line',
+    data:{labels:days.map(d=>d.label),datasets:[
+      {label:'血圧',data:days.map(d=>d.bp),borderColor:'#D4537E',backgroundColor:'transparent',tension:0.3,spanGaps:true,pointRadius:4},
+      {label:'体重',data:days.map(d=>d.w),borderColor:'#378ADD',backgroundColor:'transparent',tension:0.3,spanGaps:true,yAxisID:'y2',pointRadius:4}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{font:{size:11}}},y2:{position:'right',ticks:{font:{size:11}},grid:{drawOnChartArea:false}}}}
+  });
+}
+
+function renderHistory(){
+  const recs=getRecords();
+  document.getElementById('history-list').innerHTML=recs.length?recs.map(recCard).join(''):'<div class="empty">記録がありません</div>';
+}
+
+function renderAll(){ renderTodayList(); renderTodayTab(); renderGraphs(); renderHistory(); document.getElementById('header-sub').textContent=todayLabel(); }
+
+function showTab(tab,btn){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('section-'+tab).classList.add('active');
+  btn.classList.add('active');
+}
+
+if(!getApiKey()) document.getElementById('api-setup').style.display='block';
+renderAll();
+</script>
+</body>
+</html>
